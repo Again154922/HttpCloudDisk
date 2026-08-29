@@ -41,7 +41,7 @@ internal static class Program
             }
         }
         
-        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] 服务器连接成功");
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] 已连接到远程api {_url}");
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] 您可以开始使用了,键入help以获取命令帮助");
         while (true)
         {
@@ -73,6 +73,7 @@ internal static class Program
         // upload [localpath] [remotepath] 上传文件
         // rd [path] 删除文件夹
         // md [path] 新建文件夹
+        // exit 退出
         
         switch (parts[0])
         {
@@ -99,7 +100,9 @@ internal static class Program
                 // Console.WriteLine(_url + "/login");
                 if (loginResponse.StatusCode is HttpStatusCode.OK or HttpStatusCode.Unauthorized)
                 {
-                    var loginJson = JsonSerializer.Deserialize<LoginResponse>(await loginResponse.Content.ReadAsStringAsync(), _options)!;
+                    var loginJson =
+                        JsonSerializer.Deserialize<LoginResponse>(await loginResponse.Content.ReadAsStringAsync(),
+                            _options)!;
                     Console.WriteLine(loginJson.Message);
                     if (!loginResponse.IsSuccessStatusCode) return;
                     
@@ -108,12 +111,14 @@ internal static class Program
                     switch (loginJson.Permission)
                     {
                         case Permission.Guest or Permission.User:
-                            var loginDirResponse = await HttpClient.GetAsync(_url + "/dir?dir=D%3A");
-                            if (loginDirResponse.IsSuccessStatusCode)
+                            var userLoginDirResponse = await HttpClient.GetAsync(_url + @"/dir?dir=D:\");
+                            if (userLoginDirResponse.IsSuccessStatusCode)
                             {
-                                var loginDirJson = JsonSerializer.Deserialize<string[]>(await loginDirResponse.Content.ReadAsStringAsync(), _options)!;
+                                var userLoginDirJson =
+                                    JsonSerializer.Deserialize<string[]>(
+                                        await userLoginDirResponse.Content.ReadAsStringAsync(), _options)!;
                                 _currentDir = @"D:\";
-                                foreach (var file in loginDirJson)
+                                foreach (var file in userLoginDirJson)
                                 {
                                     Console.WriteLine(file);
                                 }
@@ -125,11 +130,36 @@ internal static class Program
                             var diskResponse = await HttpClient.GetAsync(_url + "/get_disk");
                             if (diskResponse.IsSuccessStatusCode)
                             {
-                                var diskJson = JsonSerializer.Deserialize<string[]>(await diskResponse.Content.ReadAsStringAsync(), _options)!;
-                                Console.Write("请选择要进入的盘符:");
+                                var diskJson =
+                                    JsonSerializer.Deserialize<string[]>(await diskResponse.Content.ReadAsStringAsync(),
+                                        _options)!;
+                                Console.WriteLine("远程计算机有下列盘符:");
                                 foreach (var disk in diskJson)
                                 {
-                                    Console.Write(disk);
+                                    Console.Write(disk + (disk != diskJson[^1] ? " " : "\n"));
+                                }
+
+                                string? diskInput;
+                                while (true)
+                                {
+                                    Console.Write("请输入要进入的盘符(输入单个字母) >>> ");
+                                    diskInput = Console.ReadLine();
+                                    if (diskJson.Contains(diskInput?.ToUpper() + ":")) break;
+                                    Console.WriteLine($"非法输入\'{diskInput}\'");
+                                }
+
+                                var adminLoginDirResponse =
+                                    await HttpClient.GetAsync(_url + $@"/dir?dir={diskInput?.ToUpper()}:\");
+                                if (adminLoginDirResponse.IsSuccessStatusCode)
+                                {
+                                    var adminLoginDirJson =
+                                        JsonSerializer.Deserialize<string[]>(
+                                            await adminLoginDirResponse.Content.ReadAsStringAsync(), _options)!;
+                                    _currentDir = diskInput?.ToUpper() + @":\";
+                                    foreach (var file in adminLoginDirJson)
+                                    {
+                                        Console.WriteLine(file);
+                                    }
                                 }
                             }
 
@@ -147,17 +177,21 @@ internal static class Program
 
                 if (registerResponse.StatusCode is HttpStatusCode.OK or HttpStatusCode.BadRequest)
                 {
-                    var registerJson = JsonSerializer.Deserialize<RegisterResponse>(await registerResponse.Content.ReadAsStringAsync(), _options)!;
+                    var registerJson =
+                        JsonSerializer.Deserialize<RegisterResponse>(await registerResponse.Content.ReadAsStringAsync(),
+                            _options)!;
                     Console.WriteLine(registerJson.Message);
                     if (!registerResponse.IsSuccessStatusCode) return;
                     
                     Console.WriteLine($"你的权限是{registerJson.Permission}");
                     _currentPermission = registerJson.Permission;
-                    var registerDirResponse = await HttpClient.GetAsync(_url + "/dir?dir=D%3A");
+                    var registerDirResponse = await HttpClient.GetAsync(_url + @"/dir?dir=D:\");
                     _currentDir = @"D:\";
                     if (registerDirResponse.IsSuccessStatusCode)
                     {
-                        var registerDirJson = JsonSerializer.Deserialize<string[]>(await registerDirResponse.Content.ReadAsStringAsync(), _options)!;
+                        var registerDirJson =
+                            JsonSerializer.Deserialize<string[]>(await registerDirResponse.Content.ReadAsStringAsync(),
+                                _options)!;
                         foreach (var file in registerDirJson)
                         {
                             Console.WriteLine(file);
@@ -165,6 +199,19 @@ internal static class Program
                     }
                 }
                 
+                break;
+            
+            case "dir":
+                var dirResponse = await HttpClient.GetAsync(_url + $"/dir?dir={_currentDir}");
+                if (dirResponse.IsSuccessStatusCode)
+                {
+                    var dirJson =
+                        JsonSerializer.Deserialize<string[]>(await dirResponse.Content.ReadAsStringAsync(), _options)!;
+                    foreach (var file in dirJson)
+                    {
+                        Console.WriteLine(file);
+                    }
+                }
                 break;
         }
     }

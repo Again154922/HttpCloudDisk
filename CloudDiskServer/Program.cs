@@ -129,6 +129,7 @@ internal static class Program
         {
             List<string> files = new();
             string[] filesTemp = Directory.GetFileSystemEntries(dir);
+            Console.WriteLine(filesTemp);
             foreach (var file in filesTemp)
             {
                 files.Add(Path.GetFileName(file));
