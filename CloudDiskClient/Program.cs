@@ -2,8 +2,9 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using CloudDisk.References;
 
-namespace CloudDiskClient;
+namespace CloudDisk.Client;
 
 internal static class Program
 {

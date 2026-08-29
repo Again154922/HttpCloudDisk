@@ -4,6 +4,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudDiskServer", "CloudDis
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudDiskClient", "CloudDiskClient\CloudDiskClient.csproj", "{21EE3A4D-8532-4413-BDA0-D4A13EC62830}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "References", "References\References.csproj", "{2A659B4E-1BE0-446F-A128-5800F0A20DB6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,9 @@ Global
 		{21EE3A4D-8532-4413-BDA0-D4A13EC62830}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{21EE3A4D-8532-4413-BDA0-D4A13EC62830}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{21EE3A4D-8532-4413-BDA0-D4A13EC62830}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2A659B4E-1BE0-446F-A128-5800F0A20DB6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2A659B4E-1BE0-446F-A128-5800F0A20DB6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2A659B4E-1BE0-446F-A128-5800F0A20DB6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2A659B4E-1BE0-446F-A128-5800F0A20DB6}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

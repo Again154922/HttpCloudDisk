@@ -1,4 +1,4 @@
-﻿namespace CloudDiskClient;
+﻿namespace CloudDisk.References;
 
 public enum Permission
 {
