@@ -136,7 +136,7 @@ internal static class Program
         {
             List<string> files = new();
             string[] filesTemp = Directory.GetFileSystemEntries(dir);
-            Console.WriteLine(filesTemp);
+            // Console.WriteLine(filesTemp);
             foreach (var file in filesTemp)
             {
                 files.Add(Path.GetFileName(file));
@@ -154,9 +154,9 @@ internal static class Program
 
         app.MapGet("/client/cd", (string dir) =>
         {
-            // Console.WriteLine(dir.ToUpper());
+            // Console.WriteLine($"'{dir}'");
             if (Directory.Exists(dir)) return Results.Ok();
-            return Results.BadRequest();
+            return Results.NotFound();
         });
 
         app.Run("http://*:5000");

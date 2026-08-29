@@ -16,6 +16,7 @@ internal static class Program
     
     static async Task Main(string[] args)
     {
+        // Console.WriteLine(new string[1]);
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] 开始连接服务器");
         
         _url = "http://[2409:8a1e:2321:70d0:9744:c5c0:5e93:b9a3]:5000/client";
@@ -208,33 +209,41 @@ internal static class Program
             case "cd":
                 try
                 {
-                    parts[1] = parts[1].TrimEnd('\\');
+                    if (parts.Length == 1) throw new Exception();
                 }
                 catch (Exception)
                 {
                     Console.WriteLine("非法输入,键入help以获取帮助");
                 }
 
-                if (parts[1] == "..")  // 上级
+                string result = "";
+                foreach (var part in parts[1..])
+                {
+                    result += part + " ";
+                }
+                result = result.TrimEnd(' ');
+
+                if (result == "..")  // 上级
                 {
                     if (_currentDir[^2] != ':')
                     {
-                        _currentDir = Directory.GetDirectoryRoot(_currentDir);
+                        _currentDir = Path.GetDirectoryName(_currentDir)!;
                     }
                 }
-                else if (parts[1][1] == ':')  // 绝对路径
+                else if (result[1] == ':')  // 绝对路径
                 {
-                    parts[1] = parts[1][0].ToString().ToUpper() + parts[1][1..] + "\\";
-                    // Console.WriteLine(parts[1]);
-                    var cdResponse = await HttpClient.GetAsync(_url + $"/cd?dir={Uri.EscapeDataString(parts[1])}");
+                    result = result[0].ToString().ToUpper() + result[1..] + "\\";
+                    // Console.WriteLine(result);
+                    var cdResponse = await HttpClient.GetAsync(_url + $"/cd?dir={Uri.EscapeDataString(result)}");
                     // Console.WriteLine(Uri.EscapeDataString(parts[1]));
-                    if (cdResponse.IsSuccessStatusCode) _currentDir = parts[1];
+                    if (cdResponse.IsSuccessStatusCode) _currentDir = result.TrimEnd('\\');
                     else Console.WriteLine("目标目录不存在");
                 }
                 else  // 相对路径
                 {
-                    var targetDir = _currentDir + parts[1];
-                    var cdResponse = await HttpClient.GetAsync(_url + $"/cd?dir={Uri.EscapeDataString(targetDir)}");
+                    var targetDir = _currentDir + "\\" + result;
+                    Console.WriteLine(targetDir);
+                    var cdResponse = await HttpClient.GetAsync(_url + $"/cd?dir={Uri.EscapeDataString(targetDir + "\\")}");
                     if (cdResponse.IsSuccessStatusCode) _currentDir = targetDir;
                 }
                 
