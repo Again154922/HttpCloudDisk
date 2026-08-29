@@ -43,7 +43,7 @@ internal static class Program
         }
         
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] 已连接到远程api {_url}");
-        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] 您可以开始使用了,键入help以获取命令帮助");
+        Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] 您可以开始使用了,键入help以获取帮助");
         while (true)
         {
             Console.Write($"{(_currentPermission == Permission.Unknown ? "请先登录/注册" : _currentDir)} >>> ");
@@ -85,17 +85,30 @@ internal static class Program
                               register [usrname] [pwd] 注册
                               dir 输出当前目录下文件(夹)
                               download [path] 下载文件
-                              cd [path] 进入目录
+                              cd [path] 进入目录 [path]: ..(上级)/绝对路径/向下相对路径
                               del [filepath] 删除文件
                               upload [localpath] [remotepath] 上传文件
                               rd [path] 删除文件夹
                               md [path] 新建文件夹
+                              exit 退出
                               
                               """);
                 break;
             
+            case "exit":
+                Exit();
+                break;
+
             case "login":
-                var loginUserInfo = new { Username = parts[1], Password = parts[2] };
+                var loginUserInfo = new { Username = "", Password = "" };
+                try
+                {
+                    loginUserInfo = new { Username = parts[1], Password = parts[2] };
+                }
+                catch (Exception)
+                {
+                    Console.WriteLine("非法输入,键入help以获取帮助");
+                }
 
                 var loginResponse = await HttpClient.PostAsJsonAsync(_url + "/login", loginUserInfo);
                 // Console.WriteLine(_url + "/login");
@@ -112,19 +125,8 @@ internal static class Program
                     switch (loginJson.Permission)
                     {
                         case Permission.Guest or Permission.User:
-                            var userLoginDirResponse = await HttpClient.GetAsync(_url + @"/dir?dir=D:\");
-                            if (userLoginDirResponse.IsSuccessStatusCode)
-                            {
-                                var userLoginDirJson =
-                                    JsonSerializer.Deserialize<string[]>(
-                                        await userLoginDirResponse.Content.ReadAsStringAsync(), _options)!;
-                                _currentDir = @"D:\";
-                                foreach (var file in userLoginDirJson)
-                                {
-                                    Console.WriteLine(file);
-                                }
-                            }
-
+                            await HandleFunc("cd d:");
+                            await HandleFunc("dir");
                             break;
                         
                         case Permission.Admin:
@@ -149,19 +151,8 @@ internal static class Program
                                     Console.WriteLine($"非法输入\'{diskInput}\'");
                                 }
 
-                                var adminLoginDirResponse =
-                                    await HttpClient.GetAsync(_url + $@"/dir?dir={diskInput?.ToUpper()}:\");
-                                if (adminLoginDirResponse.IsSuccessStatusCode)
-                                {
-                                    var adminLoginDirJson =
-                                        JsonSerializer.Deserialize<string[]>(
-                                            await adminLoginDirResponse.Content.ReadAsStringAsync(), _options)!;
-                                    _currentDir = diskInput?.ToUpper() + @":\";
-                                    foreach (var file in adminLoginDirJson)
-                                    {
-                                        Console.WriteLine(file);
-                                    }
-                                }
+                                await HandleFunc($"cd {diskInput!.ToUpper() + ":"}");
+                                await HandleFunc("dir");
                             }
 
                             break;
@@ -173,7 +164,15 @@ internal static class Program
                 break;
             
             case "register":
-                var registerUserInfo = new { Username = parts[1], Password = parts[2] };
+                var registerUserInfo = new { Username = "", Password = "" };
+                try
+                {
+                    registerUserInfo = new { Username = parts[1], Password = parts[2] };
+                }
+                catch (Exception)
+                {
+                    Console.WriteLine("非法输入,键入help以获取帮助");
+                }
                 var registerResponse = await HttpClient.PostAsJsonAsync(_url + "/register", registerUserInfo);
 
                 if (registerResponse.StatusCode is HttpStatusCode.OK or HttpStatusCode.BadRequest)
@@ -186,24 +185,15 @@ internal static class Program
                     
                     Console.WriteLine($"你的权限是{registerJson.Permission}");
                     _currentPermission = registerJson.Permission;
-                    var registerDirResponse = await HttpClient.GetAsync(_url + @"/dir?dir=D:\");
-                    _currentDir = @"D:\";
-                    if (registerDirResponse.IsSuccessStatusCode)
-                    {
-                        var registerDirJson =
-                            JsonSerializer.Deserialize<string[]>(await registerDirResponse.Content.ReadAsStringAsync(),
-                                _options)!;
-                        foreach (var file in registerDirJson)
-                        {
-                            Console.WriteLine(file);
-                        }
-                    }
+
+                    await HandleFunc("cd d:");
+                    await HandleFunc("dir");
                 }
                 
                 break;
             
             case "dir":
-                var dirResponse = await HttpClient.GetAsync(_url + $"/dir?dir={_currentDir}");
+                var dirResponse = await HttpClient.GetAsync(_url + $"/dir?dir={Uri.EscapeDataString(_currentDir)}");
                 if (dirResponse.IsSuccessStatusCode)
                 {
                     var dirJson =
@@ -213,6 +203,41 @@ internal static class Program
                         Console.WriteLine(file);
                     }
                 }
+                break;
+            
+            case "cd":
+                try
+                {
+                    parts[1] = parts[1].TrimEnd('\\');
+                }
+                catch (Exception)
+                {
+                    Console.WriteLine("非法输入,键入help以获取帮助");
+                }
+
+                if (parts[1] == "..")  // 上级
+                {
+                    if (_currentDir[^2] != ':')
+                    {
+                        _currentDir = Directory.GetDirectoryRoot(_currentDir);
+                    }
+                }
+                else if (parts[1][1] == ':')  // 绝对路径
+                {
+                    parts[1] = parts[1][0].ToString().ToUpper() + parts[1][1..] + "\\";
+                    // Console.WriteLine(parts[1]);
+                    var cdResponse = await HttpClient.GetAsync(_url + $"/cd?dir={Uri.EscapeDataString(parts[1])}");
+                    // Console.WriteLine(Uri.EscapeDataString(parts[1]));
+                    if (cdResponse.IsSuccessStatusCode) _currentDir = parts[1];
+                    else Console.WriteLine("目标目录不存在");
+                }
+                else  // 相对路径
+                {
+                    var targetDir = _currentDir + parts[1];
+                    var cdResponse = await HttpClient.GetAsync(_url + $"/cd?dir={Uri.EscapeDataString(targetDir)}");
+                    if (cdResponse.IsSuccessStatusCode) _currentDir = targetDir;
+                }
+                
                 break;
         }
     }

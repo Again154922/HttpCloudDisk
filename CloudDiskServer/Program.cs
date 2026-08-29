@@ -85,7 +85,11 @@ internal static class Program
             return Results.File(stream, "application/octet-stream", fileName);
         });
 
-        app.MapGet("/client", () => Results.Ok());
+        app.MapGet("/client", () =>
+        {
+            Console.WriteLine("客户端尝试连接");
+            return Results.Ok();
+        });
         
         app.MapPost("/client/register", (RegisterRequest req) =>
         {
@@ -103,6 +107,7 @@ internal static class Program
             }
             users.Add(currentUser);
             SaveUsers(users);
+            Console.WriteLine("客户端登录,已分配权限Guest");
             return Results.Ok(new RegisterResponse("注册成功", Permission.Guest));
         });
 
@@ -119,6 +124,7 @@ internal static class Program
                 if (req.Username == user.Username && HashPassword(req.Password) == user.Password)
                 {
                     User currentUser = new(req.Username, HashPassword(req.Password), user.Permission);
+                    Console.WriteLine($"客户端用户{req.Username}登录,权限{currentUser.Permission}");
                     return Results.Ok(new LoginResponse("登录成功", currentUser.Permission));
                 }
             }
@@ -136,10 +142,22 @@ internal static class Program
                 files.Add(Path.GetFileName(file));
             }
 
+            Console.WriteLine($"客户端访问路径{dir}下文件");
             return Results.Json(files.ToArray());
         });
 
-        app.MapGet("/client/get_disk", () => Results.Json(Disks));
+        app.MapGet("/client/get_disk", () =>
+        {
+            Console.WriteLine("客户端访问磁盘列表");
+            return Results.Json(Disks);
+        });
+
+        app.MapGet("/client/cd", (string dir) =>
+        {
+            // Console.WriteLine(dir.ToUpper());
+            if (Directory.Exists(dir)) return Results.Ok();
+            return Results.BadRequest();
+        });
 
         app.Run("http://*:5000");
     }
