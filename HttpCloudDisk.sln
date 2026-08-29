@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudDiskServer", "CloudDiskServer\CloudDiskServer.csproj", "{E64F5BA0-9E56-4C3A-941B-182A420AA09C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudDiskClient", "CloudDiskClient\CloudDiskClient.csproj", "{21EE3A4D-8532-4413-BDA0-D4A13EC62830}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E64F5BA0-9E56-4C3A-941B-182A420AA09C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E64F5BA0-9E56-4C3A-941B-182A420AA09C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E64F5BA0-9E56-4C3A-941B-182A420AA09C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E64F5BA0-9E56-4C3A-941B-182A420AA09C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{21EE3A4D-8532-4413-BDA0-D4A13EC62830}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{21EE3A4D-8532-4413-BDA0-D4A13EC62830}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{21EE3A4D-8532-4413-BDA0-D4A13EC62830}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{21EE3A4D-8532-4413-BDA0-D4A13EC62830}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
