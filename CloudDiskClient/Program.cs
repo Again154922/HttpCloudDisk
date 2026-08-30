@@ -13,6 +13,7 @@ internal static class Program
     static string _url = "";
     static string _currentDir = "";
     static Permission _currentPermission = Permission.Unknown;
+    static List<string> _currentDisk = new();
     
     static async Task Main(string[] args)
     {
@@ -75,6 +76,7 @@ internal static class Program
         // upload [localpath] [remotepath] 上传文件
         // rd [path] 删除文件夹
         // md [path] 新建文件夹
+        // disk 获取可访问的磁盘列表
         // exit 退出
         
         switch (parts[0])
@@ -109,6 +111,7 @@ internal static class Program
                 catch (Exception)
                 {
                     Console.WriteLine("非法输入,键入help以获取帮助");
+                    break;
                 }
 
                 var loginResponse = await HttpClient.PostAsJsonAsync(_url + "/login", loginUserInfo);
@@ -134,21 +137,13 @@ internal static class Program
                             var diskResponse = await HttpClient.GetAsync(_url + "/get_disk");
                             if (diskResponse.IsSuccessStatusCode)
                             {
-                                var diskJson =
-                                    JsonSerializer.Deserialize<string[]>(await diskResponse.Content.ReadAsStringAsync(),
-                                        _options)!;
-                                Console.WriteLine("远程计算机有下列盘符:");
-                                foreach (var disk in diskJson)
-                                {
-                                    Console.Write(disk + (disk != diskJson[^1] ? " " : "\n"));
-                                }
-
+                                await HandleFunc("disk");
                                 string? diskInput;
                                 while (true)
                                 {
                                     Console.Write("请输入要进入的盘符(输入单个字母) >>> ");
                                     diskInput = Console.ReadLine();
-                                    if (diskJson.Contains(diskInput?.ToUpper() + ":")) break;
+                                    if (_currentDisk.Contains(diskInput?.ToUpper() + ":")) break;
                                     Console.WriteLine($"非法输入\'{diskInput}\'");
                                 }
 
@@ -173,9 +168,10 @@ internal static class Program
                 catch (Exception)
                 {
                     Console.WriteLine("非法输入,键入help以获取帮助");
+                    break;
                 }
+                
                 var registerResponse = await HttpClient.PostAsJsonAsync(_url + "/register", registerUserInfo);
-
                 if (registerResponse.StatusCode is HttpStatusCode.OK or HttpStatusCode.Created or HttpStatusCode.BadRequest or HttpStatusCode.Conflict)
                 {
                     var registerJson =
@@ -194,6 +190,8 @@ internal static class Program
                 break;
             
             case "dir":
+                if (_currentPermission == Permission.Unknown) break;
+                
                 var dirResponse = await HttpClient.GetAsync(_url + $"/dir?dir={Uri.EscapeDataString(_currentDir)}");
                 if (dirResponse.IsSuccessStatusCode)
                 {
@@ -207,6 +205,8 @@ internal static class Program
                 break;
             
             case "cd":
+                if (_currentPermission == Permission.Unknown) break;
+                
                 try
                 {
                     if (parts.Length == 1) throw new Exception();
@@ -214,6 +214,7 @@ internal static class Program
                 catch (Exception)
                 {
                     Console.WriteLine("非法输入,键入help以获取帮助");
+                    break;
                 }
 
                 string result = "";
@@ -225,7 +226,7 @@ internal static class Program
 
                 if (result == "..")  // 上级
                 {
-                    if (_currentDir[^2] != ':')
+                    if (_currentDir[^1] != ':')
                     {
                         _currentDir = Path.GetDirectoryName(_currentDir)!;
                     }
@@ -247,6 +248,37 @@ internal static class Program
                     if (cdResponse.IsSuccessStatusCode) _currentDir = targetDir;
                 }
                 
+                break;
+            
+            case "disk":
+                if (_currentPermission == Permission.Unknown) break;
+                
+                Console.WriteLine("你可访问的远程计算机盘符有:");
+                switch (_currentPermission)
+                {
+                    case not Permission.Admin and not Permission.Unknown:
+                        Console.WriteLine("D:");
+                        _currentDisk = new List<string> { "D:" };
+                        break;
+                    
+                    case Permission.Admin:
+                        var diskResponse = await HttpClient.GetAsync(_url + "/get_disk");
+                        if (diskResponse.IsSuccessStatusCode)
+                        {
+                            var diskJson =
+                                JsonSerializer.Deserialize<string[]>(await diskResponse.Content.ReadAsStringAsync(),
+                                    _options)!;
+                            _currentDisk = diskJson.ToList();
+                            foreach (var disk in diskJson)
+                            {
+                                Console.Write(disk + (disk == diskJson[^1] ? "" : " "));
+                            }
+                            Console.WriteLine();
+                        }
+                        
+                        break;
+                }
+
                 break;
         }
     }

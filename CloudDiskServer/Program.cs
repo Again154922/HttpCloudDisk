@@ -27,7 +27,7 @@ internal static class Program
                 return Results.BadRequest("缺少目录参数");
             }
 
-            if (!dir.StartsWith("D:"))
+            if (!dir.StartsWith("D:", StringComparison.CurrentCultureIgnoreCase))
             {
                 return Results.Text($"你无权访问{dir}", statusCode: StatusCodes.Status403Forbidden);
             }
@@ -333,6 +333,11 @@ internal static class Program
 
         app.MapGet("/browse/download", (string dir) =>
         {
+            if (!dir.StartsWith("D", StringComparison.CurrentCultureIgnoreCase))
+            {
+                return Results.Text($"你无权下载文件{dir}", statusCode: 403);
+            }
+            
             Console.WriteLine($"浏览器访客下载{dir}");
 
             if (string.IsNullOrWhiteSpace(dir))
@@ -372,7 +377,7 @@ internal static class Program
             }
             users.Add(currentUser);
             SaveUsers(users);
-            Console.WriteLine("客户端登录,已分配权限Guest");
+            Console.WriteLine("客户端注册,已分配权限Guest");
             return Results.Json(new RegisterResponse("注册成功", Permission.Guest), statusCode: StatusCodes.Status201Created);
         });
 
