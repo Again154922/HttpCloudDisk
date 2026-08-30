@@ -24,27 +24,270 @@ internal static class Program
 
             if (!dir.StartsWith("D:"))
             {
-                return Results.BadRequest($"你无权访问{dir}");
+                return Results.Text($"你无权访问{dir}", statusCode: 401);
             }
 
             const string head = """
                                 <!DOCTYPE html>
-                                <html>
+                                <html lang="zh-CN">
                                 <head>
-                                <title>Cloud Disk</title>
-                                <meta charset='utf-8'>
+                                <meta charset="utf-8">
+                                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                                <title>Cloud Disk · 文件浏览</title>
                                 <style>
-                                a:visited, a:link
-                                {
-                                    color: #00e;
+                                :root {
+                                    --primary: #4f8cff;
+                                    --primary-2: #7b5cff;
+                                    --accent: #35d0ba;
+                                    --panel: rgba(255, 255, 255, .06);
+                                    --panel-hover: rgba(255, 255, 255, .12);
+                                    --line: rgba(255, 255, 255, .10);
+                                    --text: #ffffff;
+                                    --text-dim: rgba(255, 255, 255, .72);
+                                    --text-faint: rgba(255, 255, 255, .45);
+                                }
+                                * {
+                                    margin: 0;
+                                    padding: 0;
+                                    box-sizing: border-box;
+                                }
+                                body {
+                                    min-height: 100vh;
+                                    font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+                                    color: var(--text);
+                                    background:
+                                        radial-gradient(1200px 800px at 15% 10%, rgba(79, 140, 255, .20), transparent 60%),
+                                        radial-gradient(1000px 700px at 85% 85%, rgba(123, 92, 255, .22), transparent 60%),
+                                        linear-gradient(135deg, #0b1026 0%, #101a3c 55%, #0d0f24 100%);
+                                    background-attachment: fixed;
+                                    -webkit-font-smoothing: antialiased;
+                                }
+                                .topbar {
+                                    position: sticky;
+                                    top: 0;
+                                    z-index: 10;
+                                    display: flex;
+                                    align-items: center;
+                                    gap: 18px;
+                                    padding: 14px 26px;
+                                    background: rgba(11, 16, 38, .78);
+                                    border-bottom: 1px solid var(--line);
+                                    backdrop-filter: blur(14px);
+                                    -webkit-backdrop-filter: blur(14px);
+                                }
+                                .brand {
+                                    display: inline-flex;
+                                    align-items: center;
+                                    gap: 9px;
+                                    color: var(--text);
+                                    text-decoration: none;
+                                    font-size: 16px;
+                                    font-weight: 600;
+                                    letter-spacing: 1px;
+                                    white-space: nowrap;
+                                }
+                                .brand svg {
+                                    width: 26px;
+                                    height: 26px;
+                                    color: var(--accent);
+                                }
+                                .path {
+                                    flex: 1;
+                                    min-width: 0;
+                                    text-align: right;
+                                    font-size: 13px;
+                                    color: var(--text-dim);
+                                    overflow: hidden;
+                                    text-overflow: ellipsis;
+                                    white-space: nowrap;
+                                    direction: rtl;
+                                    unicode-bidi: plaintext;
+                                }
+                                .list {
+                                    max-width: 880px;
+                                    margin: 30px auto 90px;
+                                    padding: 0 20px;
+                                    display: flex;
+                                    flex-direction: column;
+                                    gap: 10px;
+                                }
+                                .item {
+                                    display: flex;
+                                    align-items: center;
+                                    gap: 14px;
+                                    padding: 14px 18px;
+                                    border-radius: 14px;
+                                    background: var(--panel);
+                                    border: 1px solid var(--line);
+                                    color: var(--text);
+                                    text-decoration: none;
+                                    animation: rise .4s ease both;
+                                    transition: transform .2s ease, background .2s ease, border-color .2s ease, box-shadow .2s ease;
+                                }
+                                .item:nth-child(1) { animation-delay: .02s; }
+                                .item:nth-child(2) { animation-delay: .06s; }
+                                .item:nth-child(3) { animation-delay: .10s; }
+                                .item:nth-child(4) { animation-delay: .14s; }
+                                .item:nth-child(5) { animation-delay: .18s; }
+                                .item:nth-child(6) { animation-delay: .22s; }
+                                .item:nth-child(7) { animation-delay: .26s; }
+                                .item:nth-child(8) { animation-delay: .30s; }
+                                .item:nth-child(9) { animation-delay: .34s; }
+                                .item:nth-child(10) { animation-delay: .38s; }
+                                .item:hover {
+                                    transform: translateX(6px);
+                                    background: var(--panel-hover);
+                                    border-color: rgba(79, 140, 255, .55);
+                                    box-shadow: 0 10px 26px rgba(0, 0, 0, .28);
+                                }
+                                .icon {
+                                    width: 30px;
+                                    height: 30px;
+                                    flex: none;
+                                    display: inline-flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    border-radius: 9px;
+                                    font-size: 17px;
+                                    background: rgba(255, 255, 255, .08);
+                                }
+                                .item.up .icon {
+                                    background: rgba(53, 208, 186, .14);
+                                    color: var(--accent);
+                                }
+                                .item.folder .icon {
+                                    color: #ffc46b;
+                                }
+                                .item.file .icon {
+                                    color: #9cc3ff;
+                                }
+                                .name {
+                                    flex: 1;
+                                    min-width: 0;
+                                    font-size: 15px;
+                                    overflow: hidden;
+                                    text-overflow: ellipsis;
+                                    white-space: nowrap;
+                                }
+                                .item.up .name {
+                                    color: var(--text-dim);
+                                    font-size: 14px;
+                                }
+                                .arrow {
+                                    color: var(--text-faint);
+                                    font-size: 22px;
+                                    line-height: 1;
+                                }
+                                .empty {
+                                    padding: 70px 20px;
+                                    text-align: center;
+                                    color: var(--text-faint);
+                                    font-size: 15px;
+                                    letter-spacing: 1px;
+                                }
+                                .footer {
+                                    position: fixed;
+                                    left: 0;
+                                    right: 0;
+                                    bottom: 0;
+                                    padding: 12px 0;
+                                    text-align: center;
+                                    font-size: 13px;
+                                    letter-spacing: 1px;
+                                    color: var(--text-faint);
+                                    background: rgba(11, 16, 38, .72);
+                                    border-top: 1px solid var(--line);
+                                    backdrop-filter: blur(14px);
+                                    -webkit-backdrop-filter: blur(14px);
+                                }
+                                @keyframes rise {
+                                    from {
+                                        opacity: 0;
+                                        transform: translateY(12px);
+                                    }
+                                    to {
+                                        opacity: 1;
+                                        transform: translateY(0);
+                                    }
+                                }
+                                @media (max-width: 520px) {
+                                    .topbar {
+                                        padding: 12px 16px;
+                                        gap: 10px;
+                                    }
+                                    .path {
+                                        font-size: 12px;
+                                    }
+                                    .list {
+                                        padding: 0 14px;
+                                        margin-top: 20px;
+                                    }
+                                    .icon {
+                                        width: 26px;
+                                        height: 26px;
+                                        font-size: 15px;
+                                    }
+                                    .name {
+                                        font-size: 14px;
+                                    }
                                 }
                                 </style>
                                 </head>
                                 <body>
-                                <ul>
+                                <header class="topbar">
+                                <a class="brand" href="/">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M17.5 19a4.5 4.5 0 0 0 .42-8.98 6 6 0 0 0-11.7 1.6A4 4 0 0 0 6.5 19h11z"/>
+                                </svg>
+                                <span>云端存储</span>
+                                </a>
+                                <div class="path" id="pathLabel">/</div>
+                                </header>
+                                <main class="list" id="fileList">
                                 """;
             const string end = """
-                               </ul>
+                               </main>
+                               <footer class="footer">
+                               <span id="countLabel"></span><span> · 云端存储</span>
+                               </footer>
+                               <script>
+                               (function () {
+                                   var list = document.getElementById("fileList");
+                                   var items = Array.prototype.slice.call(list.children);
+                                   var params = new URLSearchParams(location.search);
+                                   var dir = params.get("dir") || "";
+                                   document.getElementById("pathLabel").textContent = dir;
+
+                                   var up = null;
+                                   for (var i = 0; i < items.length; i++) {
+                                       if (items[i].classList.contains("up")) {
+                                           up = items.splice(i, 1)[0];
+                                           break;
+                                       }
+                                   }
+
+                                   items.sort(function (a, b) {
+                                       var fa = a.classList.contains("folder") ? 0 : 1;
+                                       var fb = b.classList.contains("folder") ? 0 : 1;
+                                       if (fa !== fb) return fa - fb;
+                                       return a.textContent.localeCompare(b.textContent, "zh-CN");
+                                   });
+
+                                   if (up) list.appendChild(up);
+                                   items.forEach(function (el) {
+                                       list.appendChild(el);
+                                   });
+
+                                   if (items.length === 0) {
+                                       var empty = document.createElement("div");
+                                       empty.className = "empty";
+                                       empty.textContent = "此文件夹为空";
+                                       list.appendChild(empty);
+                                   }
+
+                                   document.getElementById("countLabel").textContent = "共 " + items.length + " 项";
+                               })();
+                               </script>
                                </body>
                                </html>
                                """;
@@ -64,13 +307,15 @@ internal static class Program
             if (dir != "D:" && dir != @"D:\")
             {
                 html +=
-                    $"<li><a href=/browse?dir={Uri.EscapeDataString(Path.GetDirectoryName(dir)?.TrimEnd('\\')!)}>..</a></li>";
+                    "<a class=\"item up\" href=\"/browse?dir=" + Uri.EscapeDataString(Path.GetDirectoryName(dir)?.TrimEnd('\\')!) +
+                    "\"><span class=\"icon\">↩</span><span class=\"name\">返回上一级</span><span class=\"arrow\">›</span></a>";
             }
 
             foreach (var file in files)
             {
                 html +=
-                    $"<li><a href=/{(File.Exists(dir + @"\" + file) ? "browse/download" : "browse")}?dir={Uri.EscapeDataString(dir + @"\" + file)}>{file}</a></li>";
+                    $"<a class=\"item {(File.Exists(dir + @"\" + file) ? "file" : "folder")}\" href=\"/{(File.Exists(dir + @"\" + file) ? "browse/download" : "browse")}?dir={Uri.EscapeDataString(dir + @"\" + file)}\">" +
+                    $"<span class=\"icon\">{(File.Exists(dir + @"\" + file) ? "📄" : "📁")}</span><span class=\"name\">{file}</span><span class=\"arrow\">›</span></a>";
             }
 
             return Results.Content(head + html + end, "text/html");
