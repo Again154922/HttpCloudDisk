@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
@@ -176,7 +176,7 @@ internal static class Program
                 }
                 var registerResponse = await HttpClient.PostAsJsonAsync(_url + "/register", registerUserInfo);
 
-                if (registerResponse.StatusCode is HttpStatusCode.OK or HttpStatusCode.BadRequest)
+                if (registerResponse.StatusCode is HttpStatusCode.OK or HttpStatusCode.Created or HttpStatusCode.BadRequest or HttpStatusCode.Conflict)
                 {
                     var registerJson =
                         JsonSerializer.Deserialize<RegisterResponse>(await registerResponse.Content.ReadAsStringAsync(),

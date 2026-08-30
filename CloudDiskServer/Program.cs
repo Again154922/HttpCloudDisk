@@ -22,9 +22,19 @@ internal static class Program
         {
             Console.WriteLine($"浏览器访客访问{dir}");
 
+            if (string.IsNullOrWhiteSpace(dir))
+            {
+                return Results.BadRequest("缺少目录参数");
+            }
+
             if (!dir.StartsWith("D:"))
             {
-                return Results.Text($"你无权访问{dir}", statusCode: 401);
+                return Results.Text($"你无权访问{dir}", statusCode: StatusCodes.Status403Forbidden);
+            }
+
+            if (!Directory.Exists(dir))
+            {
+                return Results.Text($"目录不存在:{dir}", statusCode: StatusCodes.Status404NotFound);
             }
 
             const string head = """
@@ -325,6 +335,16 @@ internal static class Program
         {
             Console.WriteLine($"浏览器访客下载{dir}");
 
+            if (string.IsNullOrWhiteSpace(dir))
+            {
+                return Results.BadRequest("缺少文件路径");
+            }
+
+            if (!File.Exists(dir))
+            {
+                return Results.Text($"文件不存在:{dir}", statusCode: StatusCodes.Status404NotFound);
+            }
+
             var stream = File.OpenRead(dir);
             string fileName = Path.GetFileName(dir);
             return Results.File(stream, "application/octet-stream", fileName);
@@ -347,13 +367,13 @@ internal static class Program
             {
                 if (user.Username == currentUser.Username)
                 {
-                    return Results.BadRequest(new RegisterResponse("用户名已存在"));
+                    return Results.Json(new RegisterResponse("用户名已存在"), statusCode: StatusCodes.Status409Conflict);
                 }
             }
             users.Add(currentUser);
             SaveUsers(users);
             Console.WriteLine("客户端登录,已分配权限Guest");
-            return Results.Ok(new RegisterResponse("注册成功", Permission.Guest));
+            return Results.Json(new RegisterResponse("注册成功", Permission.Guest), statusCode: StatusCodes.Status201Created);
         });
 
         app.MapPost("/client/login", (LoginRequest req) =>
@@ -379,6 +399,16 @@ internal static class Program
 
         app.MapGet("/client/dir", (string dir) =>
         {
+            if (string.IsNullOrWhiteSpace(dir))
+            {
+                return Results.BadRequest("缺少目录参数");
+            }
+
+            if (!Directory.Exists(dir))
+            {
+                return Results.NotFound($"目录不存在:{dir}");
+            }
+
             List<string> files = new();
             string[] filesTemp = Directory.GetFileSystemEntries(dir);
             // Console.WriteLine(filesTemp);
