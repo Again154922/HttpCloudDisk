@@ -76,6 +76,19 @@
             animation: drift 30s ease-in-out infinite alternate;
         }
 
+        /* 悬浮的小星星 */
+        .star {
+            position: fixed;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, .8);
+            box-shadow: 0 0 8px 1px rgba(255, 255, 255, .55);
+            animation: twinkle 3s ease-in-out infinite;
+            z-index: 0;
+            pointer-events: none;
+        }
+
         @keyframes drift {
             from {
                 transform: translate3d(0, 0, 0) scale(1);

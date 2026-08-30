@@ -95,7 +95,8 @@ internal static class Program
                                     position: sticky;
                                     top: 0;
                                     z-index: 10;
-                                    display: flex;
+                                    display: grid;
+                                    grid-template-columns: 1fr auto 1fr;
                                     align-items: center;
                                     gap: 18px;
                                     padding: 14px 26px;
@@ -105,6 +106,8 @@ internal static class Program
                                     -webkit-backdrop-filter: blur(14px);
                                 }
                                 .brand {
+                                    grid-column: 2;
+                                    justify-self: center;
                                     display: inline-flex;
                                     align-items: center;
                                     gap: 9px;
@@ -121,7 +124,8 @@ internal static class Program
                                     color: var(--accent);
                                 }
                                 .path {
-                                    flex: 1;
+                                    grid-column: 3;
+                                    justify-self: end;
                                     min-width: 0;
                                     text-align: right;
                                     font-size: 13px;
@@ -377,7 +381,7 @@ internal static class Program
                 return Results.Text($"文件不存在:{dir}", statusCode: StatusCodes.Status404NotFound);
             }
 
-            // 以附件形式返回文件流
+            // 以附件形式返回文件流(该流由 Results.File 在响应结束后自动释放,无需手动 using)
             var stream = File.OpenRead(dir);
             string fileName = Path.GetFileName(dir);
             return Results.File(stream, "application/octet-stream", fileName);
@@ -386,7 +390,7 @@ internal static class Program
         // GET /client : 客户端连接健康检查(客户端启动时探测用)
         app.MapGet("/client", () =>
         {
-            Console.WriteLine("客户端尝试连接");
+            Console.WriteLine("客户端连接成功");
             return Results.Ok();
         });
         
@@ -482,6 +486,27 @@ internal static class Program
             // Console.WriteLine($"'{dir}'");
             if (Directory.Exists(dir)) return Results.Ok();
             return Results.NotFound();
+        });
+
+        // GET /client/download?dir=xxx : 客户端下载文件
+        app.MapGet("/client/download", (string dir) =>
+        {
+            // 参数校验:文件路径不能为空
+            if (string.IsNullOrWhiteSpace(dir))
+            {
+                return Results.BadRequest("缺少文件路径");
+            }
+            
+            // 文件不存在时返回 404
+            if (!File.Exists(dir))
+            {
+                return Results.Text($"文件不存在:{dir}", statusCode: StatusCodes.Status404NotFound);
+            }
+
+            // 以附件形式返回文件流(该流由 Results.File 在响应结束后自动释放,无需手动 using)
+            var stream = File.OpenRead(dir);
+            string fileName = Path.GetFileName(dir);
+            return Results.File(stream, "application/octet-stream", fileName);
         });
 
         // 监听所有网卡地址的 HTTP 80 端口(HTTP 默认端口)

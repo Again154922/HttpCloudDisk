@@ -10,6 +10,7 @@ using CloudDisk.References;
 //  功能:
 //    · 注册、登录(按权限自动进入对应目录)
 //    · 目录浏览、切换目录、获取磁盘列表
+//    · 下载文件到本地
 //
 //  连接方式:优先通过 IPv6 连接服务器,失败后自动回退到 IPv4
 // =====================================================================
@@ -41,7 +42,7 @@ internal static class Program
         try
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-            var response = await HttpClient.GetAsync(_url, cts.Token);
+            using var response = await HttpClient.GetAsync(_url, cts.Token);
             if (!response.IsSuccessStatusCode) throw new Exception();
         }
         catch (Exception)
@@ -52,7 +53,7 @@ internal static class Program
             try
             {
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-                var response = await HttpClient.GetAsync(_url, cts.Token);
+                using var response = await HttpClient.GetAsync(_url, cts.Token);
                 if (!response.IsSuccessStatusCode) throw new Exception();
             }
             catch (Exception)
@@ -94,22 +95,22 @@ internal static class Program
         if (string.IsNullOrWhiteSpace(input)) return;
         string[] parts = input.Split(' ');
         // 支持的命令:
-        //   help                         获取帮助
-        //   login [用户名] [密码]        登录
-        //   register [用户名] [密码]     注册
-        //   dir                          输出当前目录下的文件/文件夹
-        //   download [路径]              下载文件
-        //   cd [路径]                    进入目录(.. / 绝对路径 / 相对路径)
-        //   del [路径]                   删除文件                  admin
-        //   upload [本地路径] [远程路径] 上传文件                  user, admin
-        //   rd [路径]                    删除文件夹                admin
-        //   md [路径]                    新建文件夹                user, admin
-        //   disk                         获取可访问的磁盘列表
-        //   admin [用户名]               设置权限为管理员           admin
-        //   user [用户名]                设置权限为用户             admin
-        //   guest [用户名]               设置权限为访客             admin
-        //   exit                         退出
-        // 注:download / del / upload / rd / md / admin / user / guest 目前尚未实现
+        //   help                         获取帮助                        guest
+        //   login [用户名] [密码]        登录                            guest
+        //   register [用户名] [密码]     注册                            guest
+        //   dir                          输出当前目录下的文件/文件夹        guest
+        //   download [路径]              下载文件                        guest
+        //   cd [路径]                    进入目录(.. / 绝对路径 / 相对路径)  guest
+        //   del [路径]                   删除文件                        admin
+        //   upload [本地路径] [远程路径] 上传文件                        user, admin
+        //   rd [路径]                    删除文件夹                      admin
+        //   md [路径]                    新建文件夹                      user, admin
+        //   disk                         获取可访问的磁盘列表              guest
+        //   admin [用户名]               设置权限为管理员                 admin
+        //   user [用户名]                设置权限为用户                   admin
+        //   guest [用户名]               设置权限为访客                   admin
+        //   exit                         退出                            guest
+        // 注:del / upload / rd / md / admin / user / guest 目前尚未实现
         
         switch (parts[0])
         {
@@ -119,45 +120,45 @@ internal static class Program
                 {
                     case Permission.Admin:
                         Console.Write("""
-                                      help                         获取帮助
-                                      dir                          输出当前目录下的文件/文件夹
-                                      download [路径]              下载文件
-                                      cd [路径]                    进入目录(.. / 绝对路径 / 相对路径)
-                                      del [路径]                   删除文件
+                                      help                          获取帮助
+                                      dir                           输出当前目录下的文件/文件夹
+                                      download [路径]               下载文件
+                                      cd [路径]                     进入目录(.. / 绝对路径 / 相对路径)
+                                      del [路径]                    删除文件
                                       upload [本地路径] [远程路径]  上传文件
-                                      rd [路径]                    删除文件夹
-                                      md [路径]                    新建文件夹
-                                      disk                         获取可访问的磁盘列表(全部磁盘)
-                                      admin [用户名]               设置权限为管理员
-                                      user [用户名]                设置权限为用户
-                                      guest [用户名]               设置权限为访客
-                                      exit                         退出
+                                      rd [路径]                     删除文件夹
+                                      md [路径]                     新建文件夹
+                                      disk                          获取可访问的磁盘列表(全部磁盘)
+                                      admin [用户名]                设置权限为管理员
+                                      user [用户名]                 设置权限为用户
+                                      guest [用户名]                设置权限为访客
+                                      exit                          退出
                                       
                                       """);
                         break;
                     
                     case Permission.User:
                         Console.Write("""
-                                      help                         获取帮助
-                                      dir                          输出当前目录下的文件/文件夹
-                                      download [路径]              下载文件
-                                      cd [路径]                    进入目录(.. / 绝对路径 / 相对路径)
+                                      help                          获取帮助
+                                      dir                           输出当前目录下的文件/文件夹
+                                      download [路径]               下载文件
+                                      cd [路径]                     进入目录(.. / 绝对路径 / 相对路径)
                                       upload [本地路径] [远程路径]  上传文件
-                                      md [路径]                    新建文件夹
-                                      disk                         获取可访问的磁盘列表(仅 D:)
-                                      exit                         退出
+                                      md [路径]                     新建文件夹
+                                      disk                          获取可访问的磁盘列表(仅 D:)
+                                      exit                          退出
                                       
                                       """);
                         break;
                     
                     case Permission.Guest:
                         Console.Write("""
-                                      help                         获取帮助
-                                      dir                          输出当前目录下的文件/文件夹
-                                      download [路径]              下载文件
-                                      cd [路径]                    进入目录(.. / 绝对路径 / 相对路径)
-                                      disk                         获取可访问的磁盘列表(仅 D:)
-                                      exit                         退出
+                                      help                          获取帮助
+                                      dir                           输出当前目录下的文件/文件夹
+                                      download [路径]               下载文件
+                                      cd [路径]                     进入目录(.. / 绝对路径 / 相对路径)
+                                      disk                          获取可访问的磁盘列表(仅 D:)
+                                      exit                          退出
                                       
                                       """);
                         break;
@@ -165,10 +166,10 @@ internal static class Program
                     default:
                         // 未登录时只显示登录/注册相关命令
                         Console.Write("""
-                                      help                         获取帮助
+                                      help                          获取帮助
                                       login [用户名] [密码]         登录
                                       register [用户名] [密码]      注册
-                                      exit                         退出
+                                      exit                          退出
                                       
                                       """);
                         break;
@@ -182,6 +183,7 @@ internal static class Program
 
             // login:登录;成功后按权限自动进入对应目录
             case "login":
+            {
                 var loginUserInfo = new { Username = "", Password = "" };
                 try
                 {
@@ -194,7 +196,7 @@ internal static class Program
                 }
 
                 // 向服务器发送登录请求
-                var loginResponse = await HttpClient.PostAsJsonAsync(_url + "/login", loginUserInfo);
+                using var loginResponse = await HttpClient.PostAsJsonAsync(_url + "/login", loginUserInfo);
                 // Console.WriteLine(_url + "/login");
                 if (loginResponse.StatusCode is HttpStatusCode.OK or HttpStatusCode.Unauthorized)
                 {
@@ -236,9 +238,11 @@ internal static class Program
                 // Console.WriteLine(loginResponse);
                 // Console.WriteLine(response);
                 break;
+            }
             
             // register:注册新用户;成功后自动进入 D: 盘
             case "register":
+            {
                 var registerUserInfo = new { Username = "", Password = "" };
                 try
                 {
@@ -250,7 +254,7 @@ internal static class Program
                     break;
                 }
                 
-                var registerResponse = await HttpClient.PostAsJsonAsync(_url + "/register", registerUserInfo);
+                using var registerResponse = await HttpClient.PostAsJsonAsync(_url + "/register", registerUserInfo);
                 if (registerResponse.StatusCode is HttpStatusCode.OK or HttpStatusCode.Created or HttpStatusCode.BadRequest or HttpStatusCode.Conflict)
                 {
                     var registerJson =
@@ -268,12 +272,14 @@ internal static class Program
                 }
                 
                 break;
+            }
             
             // dir:请求服务器列出当前目录内容
             case "dir":
+            {
                 if (_currentPermission == Permission.Unknown) break;
                 
-                var dirResponse = await HttpClient.GetAsync(_url + $"/dir?dir={Uri.EscapeDataString(_currentDir)}");
+                using var dirResponse = await HttpClient.GetAsync(_url + $"/dir?dir={Uri.EscapeDataString(_currentDir)}");
                 if (dirResponse.IsSuccessStatusCode)
                 {
                     var dirJson =
@@ -284,6 +290,7 @@ internal static class Program
                     }
                 }
                 break;
+            }
             
             // cd:切换目录(.. / 绝对路径 / 相对路径)
             case "cd":
@@ -299,36 +306,36 @@ internal static class Program
                     break;
                 }
 
-                string result = "";
+                string cdDir = "";
                 foreach (var part in parts[1..])
                 {
-                    result += part + " ";
+                    cdDir += part + " ";
                 }
-                result = result.TrimEnd(' ');
+                cdDir = cdDir.TrimEnd(' ');
 
-                if (result == "..")  // 上级
+                if (cdDir == "..")  // 上级
                 {
                     if (_currentDir[^1] != ':')
                     {
                         _currentDir = Path.GetDirectoryName(_currentDir)!.TrimEnd('\\');
                     }
                 }
-                else if (result[1] == ':')  // 绝对路径
+                else if (cdDir[1] == ':')  // 绝对路径
                 {
-                    if (!result[0].ToString().Equals("D", StringComparison.CurrentCultureIgnoreCase) && _currentPermission != Permission.Admin) break;
+                    if (!cdDir[0].ToString().Equals("D", StringComparison.CurrentCultureIgnoreCase) && _currentPermission != Permission.Admin) break;
                     
-                    result = result[0].ToString().ToUpper() + result[1..] + "\\";
+                    cdDir = cdDir[0].ToString().ToUpper() + cdDir[1..] + "\\";
                     // Console.WriteLine(result);
-                    var cdResponse = await HttpClient.GetAsync(_url + $"/cd?dir={Uri.EscapeDataString(result)}");
+                    using var cdResponse = await HttpClient.GetAsync(_url + $"/cd?dir={Uri.EscapeDataString(cdDir)}");
                     // Console.WriteLine(Uri.EscapeDataString(parts[1]));
-                    if (cdResponse.IsSuccessStatusCode) _currentDir = result.TrimEnd('\\');
+                    if (cdResponse.IsSuccessStatusCode) _currentDir = cdDir.TrimEnd('\\');
                     else Console.WriteLine("目标目录不存在");
                 }
                 else  // 相对路径
                 {
-                    var targetDir = _currentDir + "\\" + result;
+                    var targetDir = _currentDir + "\\" + cdDir;
                     // Console.WriteLine(targetDir);
-                    var cdResponse = await HttpClient.GetAsync(_url + $"/cd?dir={Uri.EscapeDataString(targetDir + "\\")}");
+                    using var cdResponse = await HttpClient.GetAsync(_url + $"/cd?dir={Uri.EscapeDataString(targetDir + "\\")}");
                     if (cdResponse.IsSuccessStatusCode) _currentDir = targetDir;
                 }
                 
@@ -336,6 +343,7 @@ internal static class Program
             
             // disk:获取并打印可访问的磁盘列表
             case "disk":
+            {
                 if (_currentPermission == Permission.Unknown) break;
                 
                 Console.WriteLine("你可访问的远程计算机盘符有:");
@@ -349,7 +357,8 @@ internal static class Program
                     
                     // 管理员向服务器请求全部磁盘列表
                     case Permission.Admin:
-                        var diskResponse = await HttpClient.GetAsync(_url + "/get_disk");
+                    {
+                        using var diskResponse = await HttpClient.GetAsync(_url + "/get_disk");
                         if (diskResponse.IsSuccessStatusCode)
                         {
                             var diskJson =
@@ -364,9 +373,51 @@ internal static class Program
                         }
                         
                         break;
+                    }
                 }
 
                 break;
+            }
+            
+            // download:从服务器下载文件到本地
+            case "download":
+            {
+                try
+                {
+                    if (parts.Length == 1) throw new Exception();
+                }
+                catch (Exception)
+                {
+                    Console.WriteLine("非法输入,键入help以获取帮助");
+                    break;
+                }
+
+                string downloadDir = "";
+                foreach (var part in parts[1..])
+                {
+                    downloadDir += part + " ";
+                }
+                downloadDir = downloadDir.TrimEnd(' ');
+
+                using var downloadResponse =
+                    await HttpClient.GetAsync(_url + "/download", HttpCompletionOption.ResponseHeadersRead);
+                if (!downloadResponse.IsSuccessStatusCode)
+                {
+                    Console.WriteLine("下载失败");
+                    break;
+                }
+                string fileName = downloadResponse.Content.Headers.ContentDisposition?.FileName?.Trim('\"') ??
+                                   Path.GetFileName(downloadDir);
+                const string saveDir = @"C:\james\Download";
+
+                await using var stream = await downloadResponse.Content.ReadAsStreamAsync();
+                await using var fileStream = File.Create(saveDir);
+                await stream.CopyToAsync(fileStream);
+                
+                Console.WriteLine("下载成功,已保存到Downloads文件夹");
+                
+                break;
+            }
         }
     }
 }
