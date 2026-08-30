@@ -95,21 +95,21 @@ internal static class Program
         if (string.IsNullOrWhiteSpace(input)) return;
         string[] parts = input.Split(' ');
         // 支持的命令:
-        //   help                          获取帮助                            guest
-        //   login [用户名] [密码]         登录                                guest
-        //   register [用户名] [密码]      注册                                guest
-        //   dir                           输出当前目录下的文件/文件夹         guest
-        //   download [路径]               下载文件                            guest
-        //   cd [路径]                     进入目录(.. / 绝对路径 / 相对路径)  guest
-        //   del [路径]                    删除文件                            admin
-        //   upload [本地路径] [远程路径]  上传文件                            user, admin
-        //   rd [路径]                     删除文件夹                          admin
-        //   md [路径]                     新建文件夹                          user, admin
-        //   disk                          获取可访问的磁盘列表                guest
-        //   admin [用户名]                设置权限为管理员                    admin
-        //   user [用户名]                 设置权限为用户                      admin
-        //   guest [用户名]                设置权限为访客                      admin
-        //   exit                          退出                                guest
+        //   help                          获取帮助                            Guest
+        //   login [用户名] [密码]         登录                                Guest
+        //   register [用户名] [密码]      注册                                Guest
+        //   dir                           输出当前目录下的文件/文件夹         Guest
+        //   download [路径]               下载文件                            Guest
+        //   cd [路径]                     进入目录(.. / 绝对路径 / 相对路径)  Guest
+        //   del [路径]                    删除文件                            Admin
+        //   upload [本地路径] [远程路径]  上传文件                            User
+        //   rd [路径]                     删除文件夹                          Admin
+        //   md [路径]                     新建文件夹                          User
+        //   disk                          获取可访问的磁盘列表                Guest
+        //   admin [用户名]                设置权限为管理员                    Admin
+        //   user [用户名]                 设置权限为用户                      Admin
+        //   guest [用户名]                设置权限为访客                      Admin
+        //   exit                          退出                                Guest
         // 注:del / upload / rd / md / admin / user / guest 目前尚未实现
         
         switch (parts[0])
