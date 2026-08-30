@@ -268,6 +268,8 @@ internal static class Program
                 }
                 else if (result[1] == ':')  // 绝对路径
                 {
+                    if (!result[0].ToString().Equals("D", StringComparison.CurrentCultureIgnoreCase) && _currentPermission != Permission.Admin) break;
+                    
                     result = result[0].ToString().ToUpper() + result[1..] + "\\";
                     // Console.WriteLine(result);
                     var cdResponse = await HttpClient.GetAsync(_url + $"/cd?dir={Uri.EscapeDataString(result)}");
