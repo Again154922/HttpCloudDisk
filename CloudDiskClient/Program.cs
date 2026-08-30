@@ -4,15 +4,31 @@ using System.Text;
 using System.Text.Json;
 using CloudDisk.References;
 
+// =====================================================================
+//  CloudDisk Client · 云盘命令行客户端
+//
+//  功能:
+//    · 注册、登录(按权限自动进入对应目录)
+//    · 目录浏览、切换目录、获取磁盘列表
+//
+//  连接方式:优先通过 IPv6 连接服务器,失败后自动回退到 IPv4
+// =====================================================================
+
 namespace CloudDisk.Client;
 
 internal static class Program
 {
+    // 全局复用的 HTTP 客户端
     static readonly HttpClient HttpClient = new();
+    // JSON 反序列化选项:属性名不区分大小写,便于匹配服务器字段
     private static JsonSerializerOptions _options = new() { WriteIndented = true, PropertyNameCaseInsensitive = true };
+    // 当前连接的服务端地址
     static string _url = "";
+    // 客户端当前所在目录(登录后初始化为 D:)
     static string _currentDir = "";
+    // 当前登录用户的权限(Unknown 表示未登录)
     static Permission _currentPermission = Permission.Unknown;
+    // 当前用户可访问的磁盘列表
     static List<string> _currentDisk = new();
     
     static async Task Main(string[] args)
@@ -20,7 +36,8 @@ internal static class Program
         // Console.WriteLine(new string[1]);
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] 开始连接服务器");
         
-        _url = "http://[2409:8a1e:2321:70d0:9744:c5c0:5e93:b9a3]:5000/client";
+        // 第一次连接尝试:IPv6
+        _url = "http://[2409:8a1e:2321:70d0:9744:c5c0:5e93:b9a3]:80/client";
         try
         {
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
@@ -29,8 +46,9 @@ internal static class Program
         }
         catch (Exception)
         {
+            // IPv6 连接失败,回退到 IPv4 再试一次
             Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] ipv6连接失败,自动尝试ipv4");
-            _url = "http://192.168.1.2:5000/client";
+            _url = "http://192.168.1.2:80/client";
             try
             {
                 using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
@@ -39,6 +57,7 @@ internal static class Program
             }
             catch (Exception)
             {
+                // IPv4 也连接失败,退出程序
                 Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] ipv4连接失败,客户端退出");
                 Exit();
             }
@@ -46,10 +65,12 @@ internal static class Program
         
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] 已连接到远程api {_url}");
         Console.WriteLine($"[{DateTime.Now:HH:mm:ss}] 您可以开始使用了,键入help以获取帮助");
+        // 主循环:逐行读取用户输入并交给 HandleFunc 处理
         while (true)
         {
             Console.Write($"{(_currentPermission == Permission.Unknown ? "请先登录/注册" : _currentDir)} >>> ");
             string? input = Console.ReadLine();
+            // 输入流结束(管道/EOF)时正常退出
             if (input is null) break;
             await HandleFunc(input);
         }
@@ -57,6 +78,7 @@ internal static class Program
         Exit();
     }
 
+    /// <summary>退出程序;输入被重定向(管道/自动化)时跳过“按任意键”等待</summary>
     static void Exit()
     {
         Console.Write("按任意键退出...");
@@ -71,22 +93,24 @@ internal static class Program
     {
         if (string.IsNullOrWhiteSpace(input)) return;
         string[] parts = input.Split(' ');
-        // 命令:
-        // help 获取帮助
-        // login [usrname] [pwd] 登录
-        // register [usrname] [pwd] 注册
-        // dir 输出当前目录下文件(夹)
-        // download [path] 下载文件
-        // cd [path] 进入目录
-        // del [filepath] 删除文件
-        // upload [localpath] [remotepath] 上传文件
-        // rd [path] 删除文件夹
-        // md [path] 新建文件夹
-        // disk 获取可访问的磁盘列表
-        // exit 退出
+        // 支持的命令:
+        //   help                      获取帮助
+        //   login [用户名] [密码]     登录
+        //   register [用户名] [密码]  注册
+        //   dir                       输出当前目录下的文件/文件夹
+        //   download [路径]           下载文件
+        //   cd [路径]                 进入目录(.. / 绝对路径 / 相对路径)
+        //   del [路径]                删除文件
+        //   upload [本地路径] [远程路径] 上传文件
+        //   rd [路径]                 删除文件夹
+        //   md [路径]                 新建文件夹
+        //   disk                      获取可访问的磁盘列表
+        //   exit                      退出
+        // 注:download / del / upload / rd / md 目前尚未实现
         
         switch (parts[0])
         {
+            // help:打印帮助信息
             case "help":
                 Console.Write("""
                               help 获取帮助
@@ -104,10 +128,12 @@ internal static class Program
                               """);
                 break;
             
+            // exit:退出程序
             case "exit":
                 Exit();
                 break;
 
+            // login:登录;成功后按权限自动进入对应目录
             case "login":
                 var loginUserInfo = new { Username = "", Password = "" };
                 try
@@ -120,6 +146,7 @@ internal static class Program
                     break;
                 }
 
+                // 向服务器发送登录请求
                 var loginResponse = await HttpClient.PostAsJsonAsync(_url + "/login", loginUserInfo);
                 // Console.WriteLine(_url + "/login");
                 if (loginResponse.StatusCode is HttpStatusCode.OK or HttpStatusCode.Unauthorized)
@@ -134,11 +161,13 @@ internal static class Program
                     _currentPermission = loginJson.Permission;
                     switch (loginJson.Permission)
                     {
+                        // 访客/普通用户只能访问 D:,自动进入并列出目录
                         case Permission.Guest or Permission.User:
                             await HandleFunc("cd d:");
                             await HandleFunc("dir");
                             break;
                         
+                        // 管理员登录后先拉取磁盘列表,再让用户选择要进入的盘
                         case Permission.Admin:
                             await HandleFunc("disk");
                             string? diskInput;
@@ -161,6 +190,7 @@ internal static class Program
                 // Console.WriteLine(response);
                 break;
             
+            // register:注册新用户;成功后自动进入 D: 盘
             case "register":
                 var registerUserInfo = new { Username = "", Password = "" };
                 try
@@ -185,12 +215,14 @@ internal static class Program
                     Console.WriteLine($"你的权限是{registerJson.Permission}");
                     _currentPermission = registerJson.Permission;
 
+                    // 注册成功自动进入 D: 并列出目录
                     await HandleFunc("cd d:");
                     await HandleFunc("dir");
                 }
                 
                 break;
             
+            // dir:请求服务器列出当前目录内容
             case "dir":
                 if (_currentPermission == Permission.Unknown) break;
                 
@@ -206,6 +238,7 @@ internal static class Program
                 }
                 break;
             
+            // cd:切换目录(.. / 绝对路径 / 相对路径)
             case "cd":
                 if (_currentPermission == Permission.Unknown) break;
                 
@@ -252,17 +285,20 @@ internal static class Program
                 
                 break;
             
+            // disk:获取并打印可访问的磁盘列表
             case "disk":
                 if (_currentPermission == Permission.Unknown) break;
                 
                 Console.WriteLine("你可访问的远程计算机盘符有:");
                 switch (_currentPermission)
                 {
+                    // 非管理员固定只有 D: 盘
                     case not Permission.Admin and not Permission.Unknown:
                         Console.WriteLine("D:");
                         _currentDisk = new List<string> { "D:" };
                         break;
                     
+                    // 管理员向服务器请求全部磁盘列表
                     case Permission.Admin:
                         var diskResponse = await HttpClient.GetAsync(_url + "/get_disk");
                         if (diskResponse.IsSuccessStatusCode)

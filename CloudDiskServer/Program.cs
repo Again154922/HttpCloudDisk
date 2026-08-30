@@ -4,39 +4,58 @@ using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using CloudDisk.References;
 
+// =====================================================================
+//  CloudDisk Server · 云盘服务端
+//
+//  功能:
+//    · 浏览器端:首页、文件浏览、文件下载(仅允许访问 D: 盘)
+//    · 客户端 API:健康检查、注册、登录、目录列表、磁盘列表、目录切换
+//
+//  服务默认监听 HTTP 80 端口,用户数据保存在 UserInfo.json
+// =====================================================================
+
 namespace CloudDisk.Server;
 
 internal static class Program
 {
+    // 保护 UserInfo.json 读写操作的锁,避免并发读写冲突
     static Lock _fileLock = new();
+    // 服务器对外暴露的磁盘列表(管理员可用)
     internal static readonly string[] Disks = new[] { "C:", "D:", "E:", "F:" };
 
     static void Main(string[] args)
     {
+        // 创建并初始化 Web 应用
         var builder = WebApplication.CreateBuilder(args);
         var app = builder.Build();
 
+        // GET / : 返回首页(读取 templates/index.html 模板)
         app.MapGet("/", () => Results.Content(File.ReadAllText(@".\templates\index.html"), "text/html"));
 
+        // GET /browse?dir=xxx : 浏览器文件浏览(仅允许 D: 盘),返回动态生成的 HTML 文件列表
         app.MapGet("/browse", (string dir) =>
         {
             Console.WriteLine($"浏览器访客访问{dir}");
 
+            // 参数校验:目录参数不能为空
             if (string.IsNullOrWhiteSpace(dir))
             {
                 return Results.BadRequest("缺少目录参数");
             }
 
+            // 权限校验:只允许访问 D: 盘(不区分大小写)
             if (!dir.StartsWith("D:", StringComparison.CurrentCultureIgnoreCase))
             {
                 return Results.Text($"你无权访问{dir}", statusCode: StatusCodes.Status403Forbidden);
             }
 
+            // 目录不存在时返回 404
             if (!Directory.Exists(dir))
             {
                 return Results.Text($"目录不存在:{dir}", statusCode: StatusCodes.Status404NotFound);
             }
 
+            // 页面头尾模板:静态 HTML/CSS/JS 写死在 head/end 中,中间插入动态列表
             const string head = """
                                 <!DOCTYPE html>
                                 <html lang="zh-CN">
@@ -306,6 +325,7 @@ internal static class Program
             string[] files;
             List<string> filesTemp = new();
 
+            // 读取目录下所有条目(文件与文件夹)
             string[] dirs = Directory.GetFileSystemEntries(dir);
             foreach (var file in dirs)
             {
@@ -314,6 +334,7 @@ internal static class Program
 
             files = filesTemp.ToArray();
 
+            // 非根目录时,在列表顶部追加“返回上一级”入口
             if (!string.Equals(dir, "D:", StringComparison.CurrentCultureIgnoreCase) &&
                 !string.Equals(dir, @"D:\", StringComparison.CurrentCultureIgnoreCase))
             {
@@ -322,6 +343,7 @@ internal static class Program
                     "\"><span class=\"icon\">↩</span><span class=\"name\">返回上一级</span><span class=\"arrow\">›</span></a>";
             }
 
+            // 生成文件/文件夹列表项:文件夹跳转 /browse,文件跳转 /browse/download
             foreach (var file in files)
             {
                 html +=
@@ -332,13 +354,16 @@ internal static class Program
             return Results.Content(head + html + end, "text/html");
         });
 
+        // GET /browse/download?dir=xxx : 浏览器下载文件(仅允许 D: 盘)
         app.MapGet("/browse/download", (string dir) =>
         {
+            // 参数校验:文件路径不能为空
             if (string.IsNullOrWhiteSpace(dir))
             {
                 return Results.BadRequest("缺少文件路径");
             }
 
+            // 权限校验:只允许下载 D: 盘的文件
             if (!dir.StartsWith("D:", StringComparison.CurrentCultureIgnoreCase))
             {
                 return Results.Text($"你无权下载文件{dir}", statusCode: 403);
@@ -346,29 +371,36 @@ internal static class Program
             
             Console.WriteLine($"浏览器访客下载{dir}");
 
+            // 文件不存在时返回 404
             if (!File.Exists(dir))
             {
                 return Results.Text($"文件不存在:{dir}", statusCode: StatusCodes.Status404NotFound);
             }
 
+            // 以附件形式返回文件流
             var stream = File.OpenRead(dir);
             string fileName = Path.GetFileName(dir);
             return Results.File(stream, "application/octet-stream", fileName);
         });
 
+        // GET /client : 客户端连接健康检查(客户端启动时探测用)
         app.MapGet("/client", () =>
         {
             Console.WriteLine("客户端尝试连接");
             return Results.Ok();
         });
         
+        // POST /client/register : 注册新用户,新用户默认分配 Guest 权限
         app.MapPost("/client/register", (RegisterRequest req) =>
         {
+            // 参数校验:用户名和密码不能为空
             if (string.IsNullOrWhiteSpace(req.Username) || string.IsNullOrWhiteSpace(req.Password))
                 return Results.BadRequest(new RegisterResponse("用户名和密码不能为空"));
             
+            // 密码只保存 SHA-256 哈希值,不保存明文
             User currentUser = new(req.Username, HashPassword(req.Password), Permission.Guest);
             List<User> users = LoadUsers();
+            // 用户名查重(不区分大小写),重复时返回 409
             foreach (var user in users)
             {
                 if (string.Equals(user.Username, currentUser.Username, StringComparison.OrdinalIgnoreCase))
@@ -376,16 +408,20 @@ internal static class Program
                     return Results.Json(new RegisterResponse("用户名已存在"), statusCode: StatusCodes.Status409Conflict);
                 }
             }
+            // 查重通过后写入用户列表并持久化
             users.Add(currentUser);
             SaveUsers(users);
             Console.WriteLine("客户端注册,已分配权限Guest");
+            // 创建成功返回 201 Created
             return Results.Json(new RegisterResponse("注册成功", Permission.Guest), statusCode: StatusCodes.Status201Created);
         });
 
+        // POST /client/login : 登录校验,用户名不区分大小写,密码比对哈希值
         app.MapPost("/client/login", (LoginRequest req) =>
         {
             // Console.WriteLine(req);
             
+            // 参数校验:用户名和密码不能为空
             if (string.IsNullOrWhiteSpace(req.Username) || string.IsNullOrWhiteSpace(req.Password))
                 return Results.BadRequest(new LoginResponse("用户名和密码不能为空"));
             
@@ -401,21 +437,26 @@ internal static class Program
                 }
             }
 
+            // 未找到匹配用户或密码错误,统一返回 401
             return Results.Json(new LoginResponse("登录失败,用户名或密码错误"), statusCode: 401);
         });
 
+        // GET /client/dir?dir=xxx : 客户端获取指定目录下的文件/文件夹名列表(JSON)
         app.MapGet("/client/dir", (string dir) =>
         {
+            // 参数校验:目录参数不能为空
             if (string.IsNullOrWhiteSpace(dir))
             {
                 return Results.BadRequest("缺少目录参数");
             }
 
+            // 目录不存在时返回 404
             if (!Directory.Exists(dir))
             {
                 return Results.NotFound($"目录不存在:{dir}");
             }
 
+            // 读取目录条目并返回文件名列表
             List<string> files = new();
             string[] filesTemp = Directory.GetFileSystemEntries(dir);
             // Console.WriteLine(filesTemp);
@@ -428,12 +469,14 @@ internal static class Program
             return Results.Json(files.ToArray());
         });
 
+        // GET /client/get_disk : 客户端获取可访问的磁盘列表(JSON)
         app.MapGet("/client/get_disk", () =>
         {
             Console.WriteLine("客户端访问磁盘列表");
             return Results.Json(Disks);
         });
 
+        // GET /client/cd?dir=xxx : 客户端切换目录前的存在性检查
         app.MapGet("/client/cd", (string dir) =>
         {
             // Console.WriteLine($"'{dir}'");
@@ -441,9 +484,11 @@ internal static class Program
             return Results.NotFound();
         });
 
-        app.Run("http://*:5000");
+        // 监听所有网卡地址的 HTTP 80 端口(HTTP 默认端口)
+        app.Run("http://*:80");
     }
 
+    /// <summary>从 UserInfo.json 读取全部用户,文件不存在时返回空列表</summary>
     static List<User> LoadUsers()
     {
         lock (_fileLock)
@@ -454,6 +499,7 @@ internal static class Program
         }
     }
 
+    /// <summary>将用户列表以缩进 JSON 格式写回 UserInfo.json</summary>
     static void SaveUsers(List<User> users)
     {
         lock (_fileLock)
@@ -463,6 +509,7 @@ internal static class Program
         }
     }
 
+    /// <summary>计算密码的 SHA-256 哈希并以 Base64 返回,用于安全存储与比对</summary>
     static string HashPassword(string password)
     {
         using var sha256 = System.Security.Cryptography.SHA256.Create();
