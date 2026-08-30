@@ -50,14 +50,20 @@ internal static class Program
         {
             Console.Write($"{(_currentPermission == Permission.Unknown ? "请先登录/注册" : _currentDir)} >>> ");
             string? input = Console.ReadLine();
+            if (input is null) break;
             await HandleFunc(input);
         }
+        
+        Exit();
     }
 
     static void Exit()
     {
         Console.Write("按任意键退出...");
-        Console.ReadKey(true);
+        if (!Console.IsInputRedirected)
+        {
+            Console.ReadKey(true);
+        }
         Environment.Exit(0);
     }
     
@@ -134,22 +140,18 @@ internal static class Program
                             break;
                         
                         case Permission.Admin:
-                            var diskResponse = await HttpClient.GetAsync(_url + "/get_disk");
-                            if (diskResponse.IsSuccessStatusCode)
+                            await HandleFunc("disk");
+                            string? diskInput;
+                            while (true)
                             {
-                                await HandleFunc("disk");
-                                string? diskInput;
-                                while (true)
-                                {
-                                    Console.Write("请输入要进入的盘符(输入单个字母) >>> ");
-                                    diskInput = Console.ReadLine();
-                                    if (_currentDisk.Contains(diskInput?.ToUpper() + ":")) break;
-                                    Console.WriteLine($"非法输入\'{diskInput}\'");
-                                }
-
-                                await HandleFunc($"cd {diskInput!.ToUpper() + ":"}");
-                                await HandleFunc("dir");
+                                Console.Write("请输入要进入的盘符(输入单个字母) >>> ");
+                                diskInput = Console.ReadLine();
+                                if (_currentDisk.Contains(diskInput?.ToUpper() + ":")) break;
+                                Console.WriteLine($"非法输入\'{diskInput}\'");
                             }
+
+                            await HandleFunc($"cd {diskInput!.ToUpper() + ":"}");
+                            await HandleFunc("dir");
 
                             break;
                     }
@@ -228,7 +230,7 @@ internal static class Program
                 {
                     if (_currentDir[^1] != ':')
                     {
-                        _currentDir = Path.GetDirectoryName(_currentDir)!;
+                        _currentDir = Path.GetDirectoryName(_currentDir)!.TrimEnd('\\');
                     }
                 }
                 else if (result[1] == ':')  // 绝对路径
@@ -243,7 +245,7 @@ internal static class Program
                 else  // 相对路径
                 {
                     var targetDir = _currentDir + "\\" + result;
-                    Console.WriteLine(targetDir);
+                    // Console.WriteLine(targetDir);
                     var cdResponse = await HttpClient.GetAsync(_url + $"/cd?dir={Uri.EscapeDataString(targetDir + "\\")}");
                     if (cdResponse.IsSuccessStatusCode) _currentDir = targetDir;
                 }

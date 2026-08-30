@@ -1,7 +1,17 @@
 [
   {
     "Username": "admin",
-    "Password": "ungWv48Bz\u002BpBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=",
+    "Password": "ungWv48Bz+pBQUDeXa4iI7ADYaOWF3qctBD/YfIAFa0=",
     "Permission": 2
+  },
+  {
+    "Username": "__TEST01",
+    "Password": "m4dppKdClZotApjDb7cGI/LfrNqENiN98I2N/Vs3N0w=",
+    "Permission": 0
+  },
+  {
+    "Username": "__logtest",
+    "Password": "HUWY0ZSbR/fyERNLY57DIjjOcwhqg8L3RXE7PxL4F+U=",
+    "Permission": 0
   }
 ]

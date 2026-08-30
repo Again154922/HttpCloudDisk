@@ -314,7 +314,8 @@ internal static class Program
 
             files = filesTemp.ToArray();
 
-            if (dir != "D:" && dir != @"D:\")
+            if (!string.Equals(dir, "D:", StringComparison.CurrentCultureIgnoreCase) &&
+                !string.Equals(dir, @"D:\", StringComparison.CurrentCultureIgnoreCase))
             {
                 html +=
                     "<a class=\"item up\" href=\"/browse?dir=" + Uri.EscapeDataString(Path.GetDirectoryName(dir)?.TrimEnd('\\')!) +
@@ -333,17 +334,17 @@ internal static class Program
 
         app.MapGet("/browse/download", (string dir) =>
         {
-            if (!dir.StartsWith("D", StringComparison.CurrentCultureIgnoreCase))
+            if (string.IsNullOrWhiteSpace(dir))
+            {
+                return Results.BadRequest("缺少文件路径");
+            }
+
+            if (!dir.StartsWith("D:", StringComparison.CurrentCultureIgnoreCase))
             {
                 return Results.Text($"你无权下载文件{dir}", statusCode: 403);
             }
             
             Console.WriteLine($"浏览器访客下载{dir}");
-
-            if (string.IsNullOrWhiteSpace(dir))
-            {
-                return Results.BadRequest("缺少文件路径");
-            }
 
             if (!File.Exists(dir))
             {
@@ -370,7 +371,7 @@ internal static class Program
             List<User> users = LoadUsers();
             foreach (var user in users)
             {
-                if (user.Username == currentUser.Username)
+                if (string.Equals(user.Username, currentUser.Username, StringComparison.OrdinalIgnoreCase))
                 {
                     return Results.Json(new RegisterResponse("用户名已存在"), statusCode: StatusCodes.Status409Conflict);
                 }
@@ -391,7 +392,8 @@ internal static class Program
             List<User> users = LoadUsers();
             foreach (var user in users)
             {
-                if (req.Username == user.Username && HashPassword(req.Password) == user.Password)
+                if (string.Equals(req.Username, user.Username, StringComparison.OrdinalIgnoreCase) &&
+                    HashPassword(req.Password) == user.Password)
                 {
                     User currentUser = new(req.Username, HashPassword(req.Password), user.Permission);
                     Console.WriteLine($"客户端用户{req.Username}登录,权限{currentUser.Permission}");
