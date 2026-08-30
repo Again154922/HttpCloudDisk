@@ -94,38 +94,85 @@ internal static class Program
         if (string.IsNullOrWhiteSpace(input)) return;
         string[] parts = input.Split(' ');
         // 支持的命令:
-        //   help                      获取帮助
-        //   login [用户名] [密码]     登录
-        //   register [用户名] [密码]  注册
-        //   dir                       输出当前目录下的文件/文件夹
-        //   download [路径]           下载文件
-        //   cd [路径]                 进入目录(.. / 绝对路径 / 相对路径)
-        //   del [路径]                删除文件
-        //   upload [本地路径] [远程路径] 上传文件
-        //   rd [路径]                 删除文件夹
-        //   md [路径]                 新建文件夹
-        //   disk                      获取可访问的磁盘列表
-        //   exit                      退出
-        // 注:download / del / upload / rd / md 目前尚未实现
+        //   help                         获取帮助
+        //   login [用户名] [密码]        登录
+        //   register [用户名] [密码]     注册
+        //   dir                          输出当前目录下的文件/文件夹
+        //   download [路径]              下载文件
+        //   cd [路径]                    进入目录(.. / 绝对路径 / 相对路径)
+        //   del [路径]                   删除文件                  admin
+        //   upload [本地路径] [远程路径] 上传文件                  user, admin
+        //   rd [路径]                    删除文件夹                admin
+        //   md [路径]                    新建文件夹                user, admin
+        //   disk                         获取可访问的磁盘列表
+        //   admin [用户名]               设置权限为管理员           admin
+        //   user [用户名]                设置权限为用户             admin
+        //   guest [用户名]               设置权限为访客             admin
+        //   exit                         退出
+        // 注:download / del / upload / rd / md / admin / user / guest 目前尚未实现
         
         switch (parts[0])
         {
-            // help:打印帮助信息
+            // help:按当前权限打印可用命令
             case "help":
-                Console.Write("""
-                              help 获取帮助
-                              login [usrname] [pwd] 登录
-                              register [usrname] [pwd] 注册
-                              dir 输出当前目录下文件(夹)
-                              download [path] 下载文件
-                              cd [path] 进入目录 [path]: ..(上级)/绝对路径/向下相对路径
-                              del [filepath] 删除文件
-                              upload [localpath] [remotepath] 上传文件
-                              rd [path] 删除文件夹
-                              md [path] 新建文件夹
-                              exit 退出
-                              
-                              """);
+                switch (_currentPermission)
+                {
+                    case Permission.Admin:
+                        Console.Write("""
+                                      help                         获取帮助
+                                      dir                          输出当前目录下的文件/文件夹
+                                      download [路径]              下载文件
+                                      cd [路径]                    进入目录(.. / 绝对路径 / 相对路径)
+                                      del [路径]                   删除文件
+                                      upload [本地路径] [远程路径]  上传文件
+                                      rd [路径]                    删除文件夹
+                                      md [路径]                    新建文件夹
+                                      disk                         获取可访问的磁盘列表(全部磁盘)
+                                      admin [用户名]               设置权限为管理员
+                                      user [用户名]                设置权限为用户
+                                      guest [用户名]               设置权限为访客
+                                      exit                         退出
+                                      
+                                      """);
+                        break;
+                    
+                    case Permission.User:
+                        Console.Write("""
+                                      help                         获取帮助
+                                      dir                          输出当前目录下的文件/文件夹
+                                      download [路径]              下载文件
+                                      cd [路径]                    进入目录(.. / 绝对路径 / 相对路径)
+                                      upload [本地路径] [远程路径]  上传文件
+                                      md [路径]                    新建文件夹
+                                      disk                         获取可访问的磁盘列表(仅 D:)
+                                      exit                         退出
+                                      
+                                      """);
+                        break;
+                    
+                    case Permission.Guest:
+                        Console.Write("""
+                                      help                         获取帮助
+                                      dir                          输出当前目录下的文件/文件夹
+                                      download [路径]              下载文件
+                                      cd [路径]                    进入目录(.. / 绝对路径 / 相对路径)
+                                      disk                         获取可访问的磁盘列表(仅 D:)
+                                      exit                         退出
+                                      
+                                      """);
+                        break;
+                    
+                    default:
+                        // 未登录时只显示登录/注册相关命令
+                        Console.Write("""
+                                      help                         获取帮助
+                                      login [用户名] [密码]         登录
+                                      register [用户名] [密码]      注册
+                                      exit                         退出
+                                      
+                                      """);
+                        break;
+                }
                 break;
             
             // exit:退出程序
