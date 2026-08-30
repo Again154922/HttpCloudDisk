@@ -95,21 +95,21 @@ internal static class Program
         if (string.IsNullOrWhiteSpace(input)) return;
         string[] parts = input.Split(' ');
         // 支持的命令:
-        //   help                         获取帮助                        guest
-        //   login [用户名] [密码]        登录                            guest
-        //   register [用户名] [密码]     注册                            guest
-        //   dir                          输出当前目录下的文件/文件夹        guest
-        //   download [路径]              下载文件                        guest
-        //   cd [路径]                    进入目录(.. / 绝对路径 / 相对路径)  guest
-        //   del [路径]                   删除文件                        admin
-        //   upload [本地路径] [远程路径] 上传文件                        user, admin
-        //   rd [路径]                    删除文件夹                      admin
-        //   md [路径]                    新建文件夹                      user, admin
-        //   disk                         获取可访问的磁盘列表              guest
-        //   admin [用户名]               设置权限为管理员                 admin
-        //   user [用户名]                设置权限为用户                   admin
-        //   guest [用户名]               设置权限为访客                   admin
-        //   exit                         退出                            guest
+        //   help                          获取帮助                            guest
+        //   login [用户名] [密码]         登录                                guest
+        //   register [用户名] [密码]      注册                                guest
+        //   dir                           输出当前目录下的文件/文件夹         guest
+        //   download [路径]               下载文件                            guest
+        //   cd [路径]                     进入目录(.. / 绝对路径 / 相对路径)  guest
+        //   del [路径]                    删除文件                            admin
+        //   upload [本地路径] [远程路径]  上传文件                            user, admin
+        //   rd [路径]                     删除文件夹                          admin
+        //   md [路径]                     新建文件夹                          user, admin
+        //   disk                          获取可访问的磁盘列表                guest
+        //   admin [用户名]                设置权限为管理员                    admin
+        //   user [用户名]                 设置权限为用户                      admin
+        //   guest [用户名]                设置权限为访客                      admin
+        //   exit                          退出                                guest
         // 注:del / upload / rd / md / admin / user / guest 目前尚未实现
         
         switch (parts[0])
@@ -400,21 +400,24 @@ internal static class Program
                 downloadDir = downloadDir.TrimEnd(' ');
 
                 using var downloadResponse =
-                    await HttpClient.GetAsync(_url + "/download", HttpCompletionOption.ResponseHeadersRead);
+                    await HttpClient.GetAsync(_url + $"/download?dir={Uri.EscapeDataString(downloadDir)}", HttpCompletionOption.ResponseHeadersRead);
                 if (!downloadResponse.IsSuccessStatusCode)
                 {
                     Console.WriteLine("下载失败");
                     break;
                 }
                 string fileName = downloadResponse.Content.Headers.ContentDisposition?.FileName?.Trim('\"') ??
-                                   Path.GetFileName(downloadDir);
-                const string saveDir = @"C:\james\Download";
+                                  Path.GetFileName(downloadDir);
+                // 保存到用户 Downloads 目录,目录不存在时自动创建
+                string saveDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+                Directory.CreateDirectory(saveDir);
+                string savePath = Path.Combine(saveDir, fileName);
 
                 await using var stream = await downloadResponse.Content.ReadAsStreamAsync();
-                await using var fileStream = File.Create(saveDir);
+                await using var fileStream = File.Create(savePath);
                 await stream.CopyToAsync(fileStream);
                 
-                Console.WriteLine("下载成功,已保存到Downloads文件夹");
+                Console.WriteLine($"下载成功,已保存到{savePath}");
                 
                 break;
             }
